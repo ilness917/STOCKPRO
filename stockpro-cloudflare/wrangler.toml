@@ -1,0 +1,8 @@
+name = "stockpro"
+main = "src/index.js"
+compatibility_date = "2024-09-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "stockpro_db"
+database_id = "b142bd9f-192c-481b-bdff-34da97e746ea"

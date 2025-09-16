@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StockPro - Offline</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+        
+        .container {
+            text-align: center;
+            max-width: 400px;
+            padding: 2rem;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            opacity: 0.8;
+        }
+        
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            font-weight: 600;
+        }
+        
+        p {
+            font-size: 1.1rem;
+            margin-bottom: 2rem;
+            opacity: 0.9;
+            line-height: 1.6;
+        }
+        
+        .buttons {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
+        button {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 1rem;
+        }
+        
+        button:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+        
+        .status {
+            margin-top: 2rem;
+            padding: 1rem;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            font-size: 0.9rem;
+        }
+        
+        .online {
+            background: rgba(34, 197, 94, 0.2);
+        }
+        
+        .offline {
+            background: rgba(239, 68, 68, 0.2);
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .checking {
+            animation: pulse 2s infinite;
+        }
+        
+        @media (max-width: 480px) {
+            .container {
+                margin: 1rem;
+                padding: 1.5rem;
+            }
+            
+            .buttons {
+                flex-direction: column;
+            }
+            
+            button {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="icon">📦</div>
+        <h1>StockPro</h1>
+        <p>Você está offline. Algumas funcionalidades podem estar limitadas, mas você ainda pode acessar dados em cache.</p>
+        
+        <div class="buttons">
+            <button onclick="checkConnection()">Verificar Conexão</button>
+            <button onclick="goToApp()">Tentar Entrar</button>
+            <button onclick="window.location.reload()">Recarregar</button>
+        </div>
+        
+        <div id="status" class="status offline">
+            <strong>Status:</strong> Offline
+        </div>
+    </div>
+
+    <script>
+        let isOnline = navigator.onLine;
+        
+        function updateStatus() {
+            const status = document.getElementById('status');
+            const isCurrentlyOnline = navigator.onLine;
+            
+            if (isCurrentlyOnline) {
+                status.className = 'status online';
+                status.innerHTML = '<strong>Status:</strong> Online - Você pode usar todas as funcionalidades';
+            } else {
+                status.className = 'status offline';
+                status.innerHTML = '<strong>Status:</strong> Offline - Funcionalidades limitadas';
+            }
+            
+            // Se ficou online, mostrar opção de continuar
+            if (!isOnline && isCurrentlyOnline) {
+                status.innerHTML += '<br><button onclick="goToApp()" style="margin-top: 10px; padding: 5px 10px; font-size: 0.9rem;">Continuar para App</button>';
+            }
+            
+            isOnline = isCurrentlyOnline;
+        }
+        
+        function checkConnection() {
+            const status = document.getElementById('status');
+            status.className = 'status checking';
+            status.innerHTML = '<strong>Status:</strong> Verificando conexão...';
+            
+            // Tenta fazer uma requisição para verificar conectividade real
+            fetch('/?_=' + Date.now(), { 
+                method: 'HEAD',
+                cache: 'no-cache'
+            }).then(() => {
+                status.className = 'status online';
+                status.innerHTML = '<strong>Status:</strong> Online - Conectado com sucesso!<br><button onclick="goToApp()" style="margin-top: 10px; padding: 5px 10px; font-size: 0.9rem;">Continuar para App</button>';
+            }).catch(() => {
+                status.className = 'status offline';
+                status.innerHTML = '<strong>Status:</strong> Offline - Sem conexão com a internet';
+            });
+        }
+        
+        function goToApp() {
+            // Tenta ir para a página principal
+            if (navigator.onLine) {
+                window.location.href = '/index.html';
+            } else {
+                // Mesmo offline, tenta carregar o cache
+                window.location.href = '/index.html';
+            }
+        }
+        
+        // Event listeners para mudanças de conexão
+        window.addEventListener('online', () => {
+            console.log('Conexão restaurada');
+            updateStatus();
+        });
+        
+        window.addEventListener('offline', () => {
+            console.log('Conexão perdida');
+            updateStatus();
+        });
+        
+        // Check inicial
+        updateStatus();
+        
+        // Verificação periódica
+        setInterval(checkConnection, 30000); // A cada 30 segundos
+        
+        // Registrar service worker se não estiver registrado
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js')
+                .then(registration => {
+                    console.log('SW registered:', registration);
+                })
+                .catch(error => {
+                    console.log('SW registration failed:', error);
+                });
+        }
+    </script>
+</body>
+</html>

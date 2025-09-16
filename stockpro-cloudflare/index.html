@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StockPro - Gestão de Stock</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- JSZip -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    
+    <!-- SheetJS for Excel export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/custom.css">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json">
+    
+    <!-- PWA Meta tags -->
+    <meta name="theme-color" content="#3B82F6">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="StockPro">
+    <meta name="msapplication-TileColor" content="#3B82F6">
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        
+        .sidebar-active {
+            transform: translateX(0);
+        }
+        
+        .content-shift {
+            margin-left: 16rem;
+        }
+        
+        @media (max-width: 768px) {
+            .content-shift {
+                margin-left: 0;
+            }
+        }
+        
+        .notification-badge {
+            animation: pulse 2s infinite;
+        }
+        
+        .stock-baixo {
+            background: linear-gradient(90deg, #fef3c7 0%, #fbbf24 100%);
+        }
+        
+        .stock-critico {
+            background: linear-gradient(90deg, #fee2e2 0%, #ef4444 100%);
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Sidebar -->
+    <aside id="sidebar" class="fixed top-0 left-0 w-64 h-full bg-white shadow-lg transform -translate-x-full transition-transform duration-300 ease-in-out z-50 md:translate-x-0">
+        <div class="p-6 border-b">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
+                    <i class="fas fa-boxes text-white"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold text-gray-800">StockPro</h1>
+                    <p class="text-sm text-gray-500">Gestão de Stock</p>
+                </div>
+            </div>
+        </div>
+        
+        <nav class="p-4">
+            <ul class="space-y-2">
+                <li>
+                    <a href="#" onclick="showPage('dashboard')" class="nav-item flex items-center space-x-3 p-3 rounded-lg text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors">
+                        <i class="fas fa-chart-pie w-5"></i>
+                        <span>Dashboard</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="#" onclick="showPage('artigos')" class="nav-item flex items-center space-x-3 p-3 rounded-lg text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors">
+                        <i class="fas fa-cube w-5"></i>
+                        <span>Artigos</span>
+                        <span id="alertas-count" class="notification-badge bg-red-500 text-white text-xs rounded-full px-2 py-1 ml-auto hidden">0</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="#" onclick="showPage('movimentos')" class="nav-item flex items-center space-x-3 p-3 rounded-lg text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors">
+                        <i class="fas fa-exchange-alt w-5"></i>
+                        <span>Movimentos</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="#" onclick="showPage('fornecedores')" class="nav-item flex items-center space-x-3 p-3 rounded-lg text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors">
+                        <i class="fas fa-truck w-5"></i>
+                        <span>Fornecedores</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="#" onclick="showPage('armazens')" class="nav-item flex items-center space-x-3 p-3 rounded-lg text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors">
+                        <i class="fas fa-warehouse w-5"></i>
+                        <span>Armazéns</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="#" onclick="showPage('relatorios')" class="nav-item flex items-center space-x-3 p-3 rounded-lg text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors">
+                        <i class="fas fa-chart-bar w-5"></i>
+                        <span>Relatórios</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+    </aside>
+
+    <!-- Mobile menu button -->
+    <button id="mobile-menu-btn" class="fixed top-4 left-4 z-50 md:hidden bg-white p-2 rounded-lg shadow-lg">
+        <i class="fas fa-bars text-gray-700"></i>
+    </button>
+
+    <!-- Main Content -->
+    <main id="main-content" class="transition-all duration-300 ease-in-out md:ml-64">
+        <!-- Header -->
+        <header class="bg-white shadow-sm border-b p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 id="page-title" class="text-2xl font-semibold text-gray-800">Dashboard</h2>
+                    <p id="page-subtitle" class="text-gray-600">Visão geral do sistema</p>
+                </div>
+                
+                <div class="flex items-center space-x-4">
+                    <div class="flex items-center space-x-2 text-sm text-gray-500">
+                        <i class="fas fa-clock"></i>
+                        <span id="current-time"></span>
+                    </div>
+                    
+                    <div class="flex items-center space-x-2 bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm">
+                        <i class="fas fa-circle text-green-500 text-xs"></i>
+                        <span>Online</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Page Content -->
+        <div class="p-6">
+            <!-- Dashboard Page -->
+            <div id="dashboard-page" class="page-content">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <!-- Stats Cards -->
+                    <div class="bg-white p-6 rounded-xl shadow-sm border">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-gray-600">Total de Artigos</p>
+                                <p id="total-artigos" class="text-2xl font-bold text-gray-900">0</p>
+                            </div>
+                            <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-cube text-blue-600"></i>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white p-6 rounded-xl shadow-sm border">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-gray-600">Stock Baixo</p>
+                                <p id="stock-baixo" class="text-2xl font-bold text-yellow-600">0</p>
+                            </div>
+                            <div class="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-exclamation-triangle text-yellow-600"></i>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white p-6 rounded-xl shadow-sm border">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-gray-600">Stock Crítico</p>
+                                <p id="stock-critico" class="text-2xl font-bold text-red-600">0</p>
+                            </div>
+                            <div class="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-times-circle text-red-600"></i>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white p-6 rounded-xl shadow-sm border">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-gray-600">Armazéns</p>
+                                <p id="total-armazens" class="text-2xl font-bold text-green-600">0</p>
+                            </div>
+                            <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-warehouse text-green-600"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="bg-white rounded-xl shadow-sm border p-6 mb-8">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">Ações Rápidas</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <button onclick="showPage('artigos'); showModal('add-artigo')" class="flex items-center space-x-3 p-4 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors">
+                            <i class="fas fa-plus-circle text-blue-600"></i>
+                            <div class="text-left">
+                                <p class="font-medium text-blue-900">Novo Artigo</p>
+                                <p class="text-sm text-blue-600">Adicionar produto ao stock</p>
+                            </div>
+                        </button>
+                        
+                        <button onclick="showPage('movimentos'); showModal('movimento-stock')" class="flex items-center space-x-3 p-4 bg-green-50 hover:bg-green-100 rounded-lg transition-colors">
+                            <i class="fas fa-arrow-up text-green-600"></i>
+                            <div class="text-left">
+                                <p class="font-medium text-green-900">Entrada de Stock</p>
+                                <p class="text-sm text-green-600">Registrar nova entrada</p>
+                            </div>
+                        </button>
+                        
+                        <button onclick="showPage('movimentos'); showModal('movimento-stock')" class="flex items-center space-x-3 p-4 bg-red-50 hover:bg-red-100 rounded-lg transition-colors">
+                            <i class="fas fa-arrow-down text-red-600"></i>
+                            <div class="text-left">
+                                <p class="font-medium text-red-900">Saída de Stock</p>
+                                <p class="text-sm text-red-600">Registrar nova saída</p>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Charts -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="bg-white rounded-xl shadow-sm border p-6">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">Artigos por Categoria</h3>
+                        <div style="height: 300px;">
+                            <canvas id="categorias-chart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white rounded-xl shadow-sm border p-6">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">Movimentos Recentes</h3>
+                        <div style="height: 300px;">
+                            <canvas id="movimentos-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Artigos Page -->
+            <div id="artigos-page" class="page-content hidden">
+                <div class="flex justify-between items-center mb-6">
+                    <div class="flex items-center space-x-4">
+                        <div class="relative">
+                            <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                            <input type="text" id="search-artigos" placeholder="Pesquisar artigos..." class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+                        
+                        <select id="filter-armazem" class="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <option value="">Todos os armazéns</option>
+                        </select>
+                        
+                        <select id="filter-categoria" class="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <option value="">Todas as categorias</option>
+                        </select>
+                    </div>
+                    
+                    <div class="flex space-x-3">
+                        <button onclick="dataManager.exportTable('artigos', 'excel')" 
+                                class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors">
+                            <i class="fas fa-file-excel"></i>
+                            <span class="hidden sm:inline">Exportar</span>
+                        </button>
+                        <button onclick="showModal('add-artigo')" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg flex items-center space-x-2 transition-colors">
+                            <i class="fas fa-plus"></i>
+                            <span>Novo Artigo</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-sm border overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Artigo</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Preços</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Armazém</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="artigos-table-body" class="bg-white divide-y divide-gray-200">
+                                <!-- Dados dos artigos serão inseridos aqui -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Outras páginas serão adicionadas aqui -->
+            <div id="movimentos-page" class="page-content hidden">
+                <div class="flex justify-between items-center mb-6">
+                    <div class="flex items-center space-x-4">
+                        <div class="relative">
+                            <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                            <input type="text" id="search-movimentos" placeholder="Pesquisar movimentos..." class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+                        
+                        <select id="filter-tipo-movimento" class="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <option value="">Todos os tipos</option>
+                            <option value="entrada">Entradas</option>
+                            <option value="saida">Saídas</option>
+                            <option value="ajuste">Ajustes</option>
+                        </select>
+                    </div>
+                    
+                    <div class="flex space-x-3">
+                        <button onclick="dataManager.exportTable('movimentos', 'excel')" 
+                                class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors">
+                            <i class="fas fa-file-excel"></i>
+                            <span class="hidden sm:inline">Exportar</span>
+                        </button>
+                        <button onclick="showModal('movimento-stock')" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg flex items-center space-x-2 transition-colors">
+                            <i class="fas fa-exchange-alt"></i>
+                            <span>Novo Movimento</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-sm border overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Artigo</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantidade</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Motivo</th>
+                                </tr>
+                            </thead>
+                            <tbody id="movimentos-table-body" class="bg-white divide-y divide-gray-200">
+                                <!-- Dados dos movimentos serão inseridos aqui -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Fornecedores Page -->
+            <div id="fornecedores-page" class="page-content hidden">
+                <div class="flex justify-between items-center mb-6">
+                    <div class="flex items-center space-x-4">
+                        <div class="relative">
+                            <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                            <input type="text" id="search-fornecedores" placeholder="Pesquisar fornecedores..." 
+                                   onkeyup="filterFornecedores()"
+                                   class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+                        
+                        <select id="filter-categoria-fornecedor" onchange="filterFornecedores()" 
+                                class="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <option value="">Todas as categorias</option>
+                        </select>
+                    </div>
+                    
+                    <div class="flex space-x-3">
+                        <button onclick="dataManager.exportTable('fornecedores', 'excel')" 
+                                class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors">
+                            <i class="fas fa-file-excel"></i>
+                            <span class="hidden sm:inline">Exportar</span>
+                        </button>
+                        <button onclick="showModal('add-fornecedor')" 
+                                class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg flex items-center space-x-2 transition-colors">
+                            <i class="fas fa-plus"></i>
+                            <span>Novo Fornecedor</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="fornecedores-container" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                    <!-- Fornecedores serão inseridos aqui -->
+                </div>
+            </div>
+
+            <div id="armazens-page" class="page-content hidden">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-lg font-semibold text-gray-800">Gestão de Armazéns</h3>
+                    <div class="flex space-x-3">
+                        <button onclick="dataManager.exportTable('armazens', 'excel')" 
+                                class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors">
+                            <i class="fas fa-file-excel"></i>
+                            <span class="hidden sm:inline">Exportar</span>
+                        </button>
+                        <button onclick="showModal('add-armazem')" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg flex items-center space-x-2 transition-colors">
+                            <i class="fas fa-plus"></i>
+                            <span>Novo Armazém</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="armazens-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- Armazéns serão inseridos aqui -->
+                </div>
+            </div>
+
+            <div id="relatorios-page" class="page-content hidden">
+                <h3 class="text-lg font-semibold text-gray-800 mb-6">Relatórios</h3>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="bg-white rounded-xl shadow-sm border p-6">
+                        <h4 class="text-md font-semibold text-gray-800 mb-4">Stock por Armazém</h4>
+                        <div style="height: 400px;">
+                            <canvas id="stock-armazem-chart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white rounded-xl shadow-sm border p-6">
+                        <h4 class="text-md font-semibold text-gray-800 mb-4">Valor do Stock</h4>
+                        <div style="height: 400px;">
+                            <canvas id="valor-stock-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Loading Screen -->
+    <div id="loading" class="fixed inset-0 bg-white bg-opacity-75 flex items-center justify-center z-50 hidden">
+        <div class="text-center">
+            <div class="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p class="text-gray-600">Carregando...</p>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/config.js"></script>
+    <script src="js/data-manager.js"></script>
+    <script src="js/fornecedores.js"></script>
+    <script src="js/email-system.js"></script>
+    <script src="js/auth-check.js"></script>
+    <script src="js/app.js"></script>
+    <script src="js/modals.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/pwa.js"></script>
+</body>
+</html>
